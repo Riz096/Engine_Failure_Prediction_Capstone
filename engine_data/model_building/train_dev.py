@@ -1,5 +1,5 @@
-
 import pandas as pd
+import os
 import mlflow
 import mlflow.sklearn
 import joblib
@@ -24,10 +24,15 @@ mlflow.set_experiment("Engine_Failure_Dev")
 
 
 # ==============================
-# Load Local Dataset
+# Load Dataset
 # ==============================
 
-df = pd.read_csv("engine_data/data/engine_data.csv")
+DATA_PATH = "engine_data/data/engine_data.csv"
+
+if not os.path.exists(DATA_PATH):
+    raise FileNotFoundError(f"{DATA_PATH} not found")
+
+df = pd.read_csv(DATA_PATH)
 
 TARGET = "Engine Condition"
 
@@ -59,7 +64,7 @@ preprocessor = ColumnTransformer(
 
 
 # ==============================
-# Models (Simple for dev)
+# Models
 # ==============================
 
 models = {
@@ -71,6 +76,7 @@ models = {
 results = []
 best_model = None
 best_recall = 0
+best_model_name = ""
 
 
 # ==============================
@@ -87,7 +93,6 @@ for name, model in models.items():
         ])
 
         pipeline.fit(Xtrain, ytrain)
-
         y_pred = pipeline.predict(Xtest)
 
         acc = accuracy_score(ytest, y_pred)
@@ -118,6 +123,7 @@ for name, model in models.items():
         if recall > best_recall:
             best_recall = recall
             best_model = pipeline
+            best_model_name = name
 
 
 # ==============================
@@ -129,4 +135,6 @@ joblib.dump(best_model, "best_engine_model_dev.pkl")
 with open("dev_metrics.json", "w") as f:
     json.dump(results, f, indent=4)
 
-print("Development model saved")
+print("\nDevelopment model saved")
+print(f"Best Model: {best_model_name}")
+print(f"Best Recall: {best_recall}")
