@@ -1,4 +1,3 @@
-%%writefile engine_data/hosting/hosting.py
 
 from huggingface_hub import HfApi, create_repo
 from huggingface_hub.utils import RepositoryNotFoundError
