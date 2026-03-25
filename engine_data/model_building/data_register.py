@@ -1,4 +1,3 @@
-%%writefile engine_data/model_building/data_register.py
 
 from huggingface_hub.utils import RepositoryNotFoundError
 from huggingface_hub import HfApi, create_repo
