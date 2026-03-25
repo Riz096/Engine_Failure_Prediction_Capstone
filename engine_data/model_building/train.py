@@ -1,4 +1,3 @@
-%%writefile engine_data/model_building/train.py
 
 import pandas as pd
 import os
