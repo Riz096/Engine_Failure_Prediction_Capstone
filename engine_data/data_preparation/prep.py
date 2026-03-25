@@ -1,4 +1,3 @@
-%%writefile engine_data/data_preparation/prep.py
 
 import pandas as pd
 import os
