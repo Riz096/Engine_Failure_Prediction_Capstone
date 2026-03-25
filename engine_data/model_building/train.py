@@ -1,10 +1,10 @@
-
 import pandas as pd
 import os
 import mlflow
 import mlflow.sklearn
 import joblib
 import json
+import time
 
 from huggingface_hub import HfApi
 
@@ -45,7 +45,7 @@ api = HfApi(token=HF_TOKEN)
 
 
 # ==============================
-# LOAD DATA FROM HF
+# LOAD DATA
 # ==============================
 
 Xtrain = pd.read_csv(DATASET_BASE + "Xtrain.csv")
@@ -82,32 +82,11 @@ preprocessor = ColumnTransformer(
 # ==============================
 
 models = {
-
-    "DecisionTree": DecisionTreeClassifier(
-        random_state=42,
-        class_weight="balanced"
-    ),
-
-    "Bagging": BaggingClassifier(
-        n_estimators=100,
-        random_state=42
-    ),
-
-    "RandomForest": RandomForestClassifier(
-        n_estimators=200,
-        class_weight="balanced",
-        random_state=42
-    ),
-
-    "AdaBoost": AdaBoostClassifier(
-        n_estimators=100,
-        random_state=42
-    ),
-
-    "GradientBoosting": GradientBoostingClassifier(
-        n_estimators=150,
-        random_state=42
-    )
+    "DecisionTree": DecisionTreeClassifier(random_state=42, class_weight="balanced"),
+    "Bagging": BaggingClassifier(n_estimators=100, random_state=42),
+    "RandomForest": RandomForestClassifier(n_estimators=200, class_weight="balanced", random_state=42),
+    "AdaBoost": AdaBoostClassifier(n_estimators=100, random_state=42),
+    "GradientBoosting": GradientBoostingClassifier(n_estimators=150, random_state=42)
 }
 
 
@@ -150,7 +129,7 @@ with open("best_xgb_params.json", "w") as f:
 
 
 # ==============================
-# EXPERIMENT LOOP
+# TRAINING LOOP
 # ==============================
 
 results = []
@@ -162,7 +141,6 @@ for name, model in models.items():
 
     with mlflow.start_run(run_name=name):
 
-        # ✅ FIX: Avoid double preprocessing
         if name == "XGBoost_Tuned":
             pipeline = model
         else:
@@ -172,7 +150,6 @@ for name, model in models.items():
             ])
 
         pipeline.fit(Xtrain, ytrain)
-
         y_pred = pipeline.predict(Xtest)
 
         acc = accuracy_score(ytest, y_pred)
@@ -215,14 +192,33 @@ mlflow.sklearn.log_model(best_model, "best_model")
 
 
 # ==============================
-# UPLOAD TO HF
+# UPLOAD TO HF (FIXED)
 # ==============================
 
 api.create_repo(repo_id=MODEL_REPO, repo_type="model", exist_ok=True)
 
-api.upload_file("best_engine_model.pkl", "best_engine_model.pkl", MODEL_REPO, repo_type="model")
-api.upload_file("metrics.json", "metrics.json", MODEL_REPO, repo_type="model")
-api.upload_file("best_xgb_params.json", "best_xgb_params.json", MODEL_REPO, repo_type="model")
+time.sleep(3)
+
+api.upload_file(
+    path_or_fileobj="best_engine_model.pkl",
+    path_in_repo="best_engine_model.pkl",
+    repo_id=MODEL_REPO,
+    repo_type="model"
+)
+
+api.upload_file(
+    path_or_fileobj="metrics.json",
+    path_in_repo="metrics.json",
+    repo_id=MODEL_REPO,
+    repo_type="model"
+)
+
+api.upload_file(
+    path_or_fileobj="best_xgb_params.json",
+    path_in_repo="best_xgb_params.json",
+    repo_id=MODEL_REPO,
+    repo_type="model"
+)
 
 
 print(f"\nBest Model: {best_model_name}")
