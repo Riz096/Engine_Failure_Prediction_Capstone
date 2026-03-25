@@ -1,19 +1,37 @@
+%%writefile engine_data/model_building/data_register.py
 
 from huggingface_hub.utils import RepositoryNotFoundError
 from huggingface_hub import HfApi, create_repo
 import os
 
+# =====================
+# Configuration
+# =====================
+
 repo_id = "Rizwan9/Engine_Failure_Prediction_Capstone"
 repo_type = "dataset"
+data_path = "engine_data/data"
+
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 # =====================
-# Initialize API client
+# Validate Token
 # =====================
 
-api = HfApi(token=os.getenv("HF_TOKEN"))
+if HF_TOKEN is None:
+    raise ValueError("HF_TOKEN not found. Please set it in environment variables.")
+
+api = HfApi(token=HF_TOKEN)
+
+# =====================
+# Validate Data Folder
+# =====================
+
+if not os.path.exists(data_path):
+    raise FileNotFoundError(f"{data_path} not found. Make sure dataset exists.")
 
 # =================================
-# Step 1: Check if the dataset repo exists
+# Step 1: Check if repo exists
 # =================================
 
 try:
@@ -26,13 +44,14 @@ except RepositoryNotFoundError:
     print(f"Dataset repo '{repo_id}' created successfully.")
 
 # =====================
-# Step 2: Upload dataset folder
+# Step 2: Upload dataset
 # =====================
 
 api.upload_folder(
-    folder_path="engine_data/data",
+    folder_path=data_path,
     repo_id=repo_id,
     repo_type=repo_type,
+    commit_message="Uploading dataset files"
 )
 
 print("Dataset files uploaded successfully.")
