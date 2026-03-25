@@ -38,8 +38,6 @@ if HF_TOKEN is None:
 DATASET_BASE = "hf://datasets/Rizwan9/Engine_Failure_Prediction_Capstone/splits/"
 MODEL_REPO = "Rizwan9/Engine_Failure_Model"
 
-os.makedirs("mlruns", exist_ok=True)
-
 mlflow.set_tracking_uri("file:./mlruns")
 mlflow.set_experiment("Engine_Failure_Prod")
 
@@ -47,38 +45,16 @@ api = HfApi(token=HF_TOKEN)
 
 
 # ==============================
-# LOAD DATA
+# LOAD DATA FROM HF
 # ==============================
 
-print("Loading train-test data...")
+Xtrain = pd.read_csv(DATASET_BASE + "Xtrain.csv")
+Xtest = pd.read_csv(DATASET_BASE + "Xtest.csv")
 
-try:
-    Xtrain = pd.read_csv(DATASET_BASE + "Xtrain.csv")
-    Xtest = pd.read_csv(DATASET_BASE + "Xtest.csv")
+ytrain = pd.read_csv(DATASET_BASE + "ytrain.csv").values.ravel()
+ytest = pd.read_csv(DATASET_BASE + "ytest.csv").values.ravel()
 
-    ytrain = pd.read_csv(DATASET_BASE + "ytrain.csv").values.ravel()
-    ytest = pd.read_csv(DATASET_BASE + "ytest.csv").values.ravel()
-
-except Exception as e:
-    raise RuntimeError(f"Failed to load dataset: {e}")
-
-print("Train-test data loaded successfully")
-
-
-# ==============================
-# 🔥 COLUMN STANDARDIZATION
-# ==============================
-
-Xtrain.columns = [
-    "Engine rpm",
-    "Lub oil pressure",
-    "Fuel pressure",
-    "Coolant pressure",
-    "Lub oil temp",
-    "Coolant temp"
-]
-
-Xtest.columns = Xtrain.columns
+print("Train-test data loaded")
 
 
 # ==============================
@@ -139,8 +115,6 @@ models = {
 # XGBOOST TUNING
 # ==============================
 
-print("Tuning XGBoost...")
-
 xgb_param_grid = {
     "model__n_estimators": [100, 200],
     "model__max_depth": [3, 5],
@@ -184,13 +158,11 @@ best_model = None
 best_recall = 0
 best_model_name = ""
 
-print("Starting model training...")
-
 for name, model in models.items():
 
     with mlflow.start_run(run_name=name):
 
-        # Avoid double preprocessing
+        # ✅ FIX: Avoid double preprocessing
         if name == "XGBoost_Tuned":
             pipeline = model
         else:
@@ -204,13 +176,11 @@ for name, model in models.items():
         y_pred = pipeline.predict(Xtest)
 
         acc = accuracy_score(ytest, y_pred)
-        recall = recall_score(ytest, y_pred, zero_division=0)
-        precision = precision_score(ytest, y_pred, zero_division=0)
-        f1 = f1_score(ytest, y_pred, zero_division=0)
+        recall = recall_score(ytest, y_pred)
+        precision = precision_score(ytest, y_pred)
+        f1 = f1_score(ytest, y_pred)
 
-        # MLflow logging
         mlflow.log_param("model_type", name)
-
         mlflow.log_metrics({
             "accuracy": acc,
             "recall": recall,
@@ -218,23 +188,13 @@ for name, model in models.items():
             "f1_score": f1
         })
 
-        # ⭐ Artifact logging (IMPORTANT)
-        metrics_dict = {
+        results.append({
             "model": name,
             "accuracy": acc,
             "recall": recall,
             "precision": precision,
             "f1_score": f1
-        }
-
-        with open("metrics.json", "w") as f:
-            json.dump(metrics_dict, f)
-
-        mlflow.log_artifact("metrics.json")
-
-        results.append(metrics_dict)
-
-        print(f"{name} → Recall: {recall:.4f}")
+        })
 
         if recall > best_recall:
             best_recall = recall
@@ -243,7 +203,7 @@ for name, model in models.items():
 
 
 # ==============================
-# SAVE MODEL
+# SAVE
 # ==============================
 
 joblib.dump(best_model, "best_engine_model.pkl")
@@ -265,6 +225,6 @@ api.upload_file("metrics.json", "metrics.json", MODEL_REPO, repo_type="model")
 api.upload_file("best_xgb_params.json", "best_xgb_params.json", MODEL_REPO, repo_type="model")
 
 
-print("\nBest Model:", best_model_name)
-print("Best Recall:", best_recall)
-print("Model uploaded to Hugging Face successfully")
+print(f"\nBest Model: {best_model_name}")
+print(f"Best Recall: {best_recall}")
+print("Model uploaded to Hugging Face")
