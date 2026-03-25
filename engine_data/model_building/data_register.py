@@ -1,7 +1,7 @@
-
 from huggingface_hub.utils import RepositoryNotFoundError
 from huggingface_hub import HfApi, create_repo
 import os
+import time
 
 # =====================
 # Configuration
@@ -39,8 +39,16 @@ try:
 
 except RepositoryNotFoundError:
     print(f"Dataset repo '{repo_id}' not found. Creating new repo...")
-    create_repo(repo_id=repo_id, repo_type=repo_type, private=False)
+
+    create_repo(
+        repo_id=repo_id,
+        repo_type=repo_type,
+        private=False,
+        token=HF_TOKEN   # ✅ FIXED
+    )
+
     print(f"Dataset repo '{repo_id}' created successfully.")
+    time.sleep(3)  # ✅ FIXED
 
 # =====================
 # Step 2: Upload dataset
