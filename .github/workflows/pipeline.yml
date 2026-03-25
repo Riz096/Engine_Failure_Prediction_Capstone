@@ -21,7 +21,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt   
+          pip install -r engine_data/requirements.txt   
 
       - name: Upload Dataset to Hugging Face
         env:
@@ -45,7 +45,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt   
+          pip install -r engine_data/requirements.txt   
 
       - name: Run Data Preparation
         env:
@@ -69,7 +69,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt   
+          pip install -r engine_data/requirements.txt   
 
       - name: Model Training
         env:
@@ -94,7 +94,6 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r engine_data/deployment/requirements.txt   
-
       - name: Deploy Streamlit App to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
