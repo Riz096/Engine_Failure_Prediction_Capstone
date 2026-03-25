@@ -1,4 +1,3 @@
-```
 name: Engine Failure Prediction Pipeline
 
 on:
@@ -60,7 +59,3 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python engine_data/hosting/hosting.py
-
-```
-
-
