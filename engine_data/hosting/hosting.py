@@ -30,7 +30,7 @@ except RepositoryNotFoundError:
     create_repo(
         repo_id=SPACE_REPO,
         repo_type="space",
-        space_sdk="streamlit",
+        space_sdk="docker",
         private=False,
         token=HF_TOKEN
     )
