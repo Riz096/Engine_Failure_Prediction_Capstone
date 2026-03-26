@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import joblib
@@ -15,7 +16,7 @@ st.set_page_config(
 
 
 # ==============================
-# LOAD MODEL
+# LOAD MODEL (WITH CACHING)
 # ==============================
 
 @st.cache_resource
@@ -31,11 +32,7 @@ def load_model():
         return None
 
 
-with st.spinner("Loading model..."):
-    model = load_model()
-
-if model is None:
-    st.stop()
+model = load_model()
 
 
 # ==============================
@@ -69,39 +66,27 @@ coolant_temp = st.number_input("Coolant Temperature", 50.0, 150.0, 85.0)
 
 if st.button("Predict Engine Condition"):
 
-    try:
-        # FIXED COLUMN ORDER
-        columns = [
-            "Engine rpm",
-            "Lub oil pressure",
-            "Fuel pressure",
-            "Coolant pressure",
-            "Lub oil temp",
-            "Coolant temp"
-        ]
+    if model is None:
+        st.error("Model not loaded. Please check deployment.")
+    else:
+        try:
+            input_data = pd.DataFrame([{
+                "Engine rpm": engine_rpm,
+                "Lub oil pressure": lub_oil_pressure,
+                "Fuel pressure": fuel_pressure,
+                "Coolant pressure": coolant_pressure,
+                "Lub oil temp": lub_oil_temp,
+                "Coolant temp": coolant_temp
+            }])
 
-        input_data = pd.DataFrame([[
-            engine_rpm,
-            lub_oil_pressure,
-            fuel_pressure,
-            coolant_pressure,
-            lub_oil_temp,
-            coolant_temp
-        ]], columns=columns)
+            prediction = model.predict(input_data)[0]
 
-        prediction = model.predict(input_data)[0]
+            st.subheader("Prediction Result")
 
-        st.subheader("Prediction Result")
+            if prediction == 1:
+                st.error("Engine Failure Likely – Maintenance Required")
+            else:
+                st.success("Engine Operating Normally")
 
-        # Optional probability
-        if hasattr(model, "predict_proba"):
-            prob = model.predict_proba(input_data)[0][1]
-            st.write(f"Failure Probability: {prob:.2f}")
-
-        if prediction == 1:
-            st.error("Engine Failure Likely – Maintenance Required")
-        else:
-            st.success("Engine Operating Normally")
-
-    except Exception as e:
-        st.error(f"Prediction failed: {e}")
+        except Exception as e:
+            st.error(f"Prediction failed: {e}")

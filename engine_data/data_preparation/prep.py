@@ -1,3 +1,4 @@
+
 import pandas as pd
 import os
 from sklearn.model_selection import train_test_split
@@ -10,6 +11,7 @@ from huggingface_hub import HfApi
 HF_TOKEN = os.getenv("HF_TOKEN")
 DATASET_REPO = "Rizwan9/Engine_Failure_Prediction_Capstone"
 DATASET_PATH = "hf://datasets/Rizwan9/Engine_Failure_Prediction_Capstone/engine_data.csv"
+TARGET_COLUMN = "Engine Condition"
 
 # ==============================
 # Validate Token
@@ -40,28 +42,22 @@ print("Dataset shape:", df.shape)
 
 df = df.drop_duplicates()
 
-# ==============================
-# ✅ SAFE Column Standardization
-# ==============================
-
-df.columns = df.columns.str.strip()
-
-column_mapping = {
-    df.columns[0]: "Engine rpm",
-    df.columns[1]: "Lub oil pressure",
-    df.columns[2]: "Fuel pressure",
-    df.columns[3]: "Coolant pressure",
-    df.columns[4]: "Lub oil temp",
-    df.columns[5]: "Coolant temp",
-    df.columns[6]: "Engine Condition"
-}
-
-df = df.rename(columns=column_mapping)
-
-TARGET_COLUMN = "Engine Condition"
-
 if TARGET_COLUMN not in df.columns:
-    raise ValueError(f"Target column '{TARGET_COLUMN}' not found after renaming.")
+    raise ValueError(f"Target column '{TARGET_COLUMN}' not found.")
+
+# ==============================
+# 🔥 Column Standardization (VERY IMPORTANT)
+# ==============================
+
+df.columns = [
+    "Engine rpm",
+    "Lub oil pressure",
+    "Fuel pressure",
+    "Coolant pressure",
+    "Lub oil temp",
+    "Coolant temp",
+    "Engine Condition"
+]
 
 print("Column names standardized.")
 
@@ -106,8 +102,6 @@ for file_path in files:
 # ==============================
 # Upload to Hugging Face
 # ==============================
-
-print("Uploading splits to Hugging Face...")
 
 for file_path in files:
     try:

@@ -260,32 +260,10 @@ mlflow.sklearn.log_model(best_model, "best_model")
 
 api.create_repo(repo_id=MODEL_REPO, repo_type="model", exist_ok=True)
 
-print("Uploading model to Hugging Face...")
+api.upload_file("best_engine_model.pkl", "best_engine_model.pkl", MODEL_REPO, repo_type="model")
+api.upload_file("metrics.json", "metrics.json", MODEL_REPO, repo_type="model")
+api.upload_file("best_xgb_params.json", "best_xgb_params.json", MODEL_REPO, repo_type="model")
 
-api.create_repo(repo_id=MODEL_REPO, repo_type="model", exist_ok=True)
-
-api.upload_file(
-    path_or_fileobj="best_engine_model.pkl",
-    path_in_repo="best_engine_model.pkl",
-    repo_id=MODEL_REPO,
-    repo_type="model"
-)
-
-api.upload_file(
-    path_or_fileobj="metrics.json",
-    path_in_repo="metrics.json",
-    repo_id=MODEL_REPO,
-    repo_type="model"
-)
-
-api.upload_file(
-    path_or_fileobj="best_xgb_params.json",
-    path_in_repo="best_xgb_params.json",
-    repo_id=MODEL_REPO,
-    repo_type="model"
-)
-
-print("Model uploaded successfully")
 
 print("\nBest Model:", best_model_name)
 print("Best Recall:", best_recall)
