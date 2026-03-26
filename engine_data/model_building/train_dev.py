@@ -1,3 +1,4 @@
+
 import pandas as pd
 import mlflow
 import mlflow.sklearn
@@ -31,33 +32,18 @@ mlflow.set_experiment("Engine_Failure_Dev")
 
 df = pd.read_csv("engine_data/data/engine_data.csv")
 
-# ==============================
-# SAFE COLUMN STANDARDIZATION
-# ==============================
-
-df.columns = df.columns.str.strip()
-
-column_mapping = {
-    df.columns[0]: "Engine rpm",
-    df.columns[1]: "Lub oil pressure",
-    df.columns[2]: "Fuel pressure",
-    df.columns[3]: "Coolant pressure",
-    df.columns[4]: "Lub oil temp",
-    df.columns[5]: "Coolant temp",
-    df.columns[6]: "Engine Condition"
-}
-
-df = df.rename(columns=column_mapping)
-
 TARGET = "Engine Condition"
 
-if TARGET not in df.columns:
-    raise ValueError("Target column not found after renaming")
-
-
-# ==============================
-# Train-Test Split
-# ==============================
+# 🔥 Column Standardization (IMPORTANT)
+df.columns = [
+    "Engine rpm",
+    "Lub oil pressure",
+    "Fuel pressure",
+    "Coolant pressure",
+    "Lub oil temp",
+    "Coolant temp",
+    "Engine Condition"
+]
 
 X = df.drop(columns=[TARGET])
 y = df[TARGET]
@@ -96,15 +82,15 @@ models = {
     "GradientBoosting": GradientBoostingClassifier(random_state=42)
 }
 
-
-# ==============================
-# Training Loop
-# ==============================
-
 results = []
 best_model = None
 best_recall = 0
 best_model_name = ""
+
+
+# ==============================
+# Training Loop
+# ==============================
 
 for name, model in models.items():
 
@@ -137,7 +123,7 @@ for name, model in models.items():
             "f1_score": f1
         })
 
-        # Save metrics as artifact (unique per model)
+        # Save metrics as artifact (IMPORTANT)
         metrics_dict = {
             "model": name,
             "accuracy": acc,
@@ -146,15 +132,10 @@ for name, model in models.items():
             "f1_score": f1
         }
 
-        file_name = f"{name}_metrics.json"
-
-        with open(file_name, "w") as f:
+        with open("metrics.json", "w") as f:
             json.dump(metrics_dict, f)
 
-        mlflow.log_artifact(file_name)
-
-        # 🔥 Log model (IMPORTANT)
-        mlflow.sklearn.log_model(pipeline, "model")
+        mlflow.log_artifact("metrics.json")
 
         # ==============================
         # Track Results
@@ -184,4 +165,3 @@ with open("dev_metrics.json", "w") as f:
 print("\nBest Model:", best_model_name)
 print("Best Recall:", best_recall)
 print("Development model saved successfully")
-
