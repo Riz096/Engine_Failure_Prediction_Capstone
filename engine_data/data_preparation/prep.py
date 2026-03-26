@@ -1,5 +1,4 @@
 
-
 import pandas as pd
 import os
 from sklearn.model_selection import train_test_split
@@ -14,22 +13,31 @@ DATASET_REPO = "Rizwan9/Engine_Failure_Prediction_Capstone"
 DATASET_PATH = "hf://datasets/Rizwan9/Engine_Failure_Prediction_Capstone/engine_data.csv"
 TARGET_COLUMN = "Engine Condition"
 
+# ==============================
+# Validate Token
+# ==============================
+
 if HF_TOKEN is None:
     raise ValueError("HF_TOKEN not found. Please set it as an environment variable.")
 
 api = HfApi(token=HF_TOKEN)
 
 # ==============================
-# 3.1 Loading Data from Hugging Face
+# Load Dataset
 # ==============================
 
 print("Loading dataset from Hugging Face...")
-df = pd.read_csv(DATASET_PATH)
+
+try:
+    df = pd.read_csv(DATASET_PATH)
+except Exception as e:
+    raise RuntimeError(f"Failed to load dataset: {e}")
+
 print("Dataset loaded successfully.")
 print("Dataset shape:", df.shape)
 
 # ==============================
-# 3.2 Data Cleaning
+# Data Cleaning
 # ==============================
 
 df = df.drop_duplicates()
@@ -37,10 +45,24 @@ df = df.drop_duplicates()
 if TARGET_COLUMN not in df.columns:
     raise ValueError(f"Target column '{TARGET_COLUMN}' not found.")
 
-print("Data cleaning completed.")
+# ==============================
+# 🔥 Column Standardization (VERY IMPORTANT)
+# ==============================
+
+df.columns = [
+    "Engine rpm",
+    "Lub oil pressure",
+    "Fuel pressure",
+    "Coolant pressure",
+    "Lub oil temp",
+    "Coolant temp",
+    "Engine Condition"
+]
+
+print("Column names standardized.")
 
 # ==============================
-# 3.3 Stratified Train-Test Split
+# Train-Test Split
 # ==============================
 
 X = df.drop(columns=[TARGET_COLUMN])
@@ -55,8 +77,6 @@ Xtrain, Xtest, ytrain, ytest = train_test_split(
 )
 
 print("Train-test split completed.")
-print("Train shape:", Xtrain.shape)
-print("Test shape:", Xtest.shape)
 
 # ==============================
 # Save Locally
@@ -70,18 +90,30 @@ ytest.to_csv("ytest.csv", index=False)
 print("Local files saved successfully.")
 
 # ==============================
-# 3.4 Upload to Hugging Face Dataset Repo
+# Validate Files
 # ==============================
 
 files = ["Xtrain.csv", "Xtest.csv", "ytrain.csv", "ytest.csv"]
 
 for file_path in files:
-    api.upload_file(
-        path_or_fileobj=file_path,
-        path_in_repo=f"splits/{file_path}",
-        repo_id=DATASET_REPO,
-        repo_type="dataset",
-    )
-    print(f"{file_path} uploaded successfully.")
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} not found!")
+
+# ==============================
+# Upload to Hugging Face
+# ==============================
+
+for file_path in files:
+    try:
+        api.upload_file(
+            path_or_fileobj=file_path,
+            path_in_repo=f"splits/{file_path}",
+            repo_id=DATASET_REPO,
+            repo_type="dataset",
+        )
+        print(f"{file_path} uploaded successfully.")
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to upload {file_path}: {e}")
 
 print("Train-test splits uploaded successfully to Hugging Face.")

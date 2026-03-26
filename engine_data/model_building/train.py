@@ -1,10 +1,10 @@
+
 import pandas as pd
 import os
 import mlflow
 import mlflow.sklearn
 import joblib
 import json
-import time
 
 from huggingface_hub import HfApi
 
@@ -38,6 +38,8 @@ if HF_TOKEN is None:
 DATASET_BASE = "hf://datasets/Rizwan9/Engine_Failure_Prediction_Capstone/splits/"
 MODEL_REPO = "Rizwan9/Engine_Failure_Model"
 
+os.makedirs("mlruns", exist_ok=True)
+
 mlflow.set_tracking_uri("file:./mlruns")
 mlflow.set_experiment("Engine_Failure_Prod")
 
@@ -48,13 +50,35 @@ api = HfApi(token=HF_TOKEN)
 # LOAD DATA
 # ==============================
 
-Xtrain = pd.read_csv(DATASET_BASE + "Xtrain.csv")
-Xtest = pd.read_csv(DATASET_BASE + "Xtest.csv")
+print("Loading train-test data...")
 
-ytrain = pd.read_csv(DATASET_BASE + "ytrain.csv").values.ravel()
-ytest = pd.read_csv(DATASET_BASE + "ytest.csv").values.ravel()
+try:
+    Xtrain = pd.read_csv(DATASET_BASE + "Xtrain.csv")
+    Xtest = pd.read_csv(DATASET_BASE + "Xtest.csv")
 
-print("Train-test data loaded")
+    ytrain = pd.read_csv(DATASET_BASE + "ytrain.csv").values.ravel()
+    ytest = pd.read_csv(DATASET_BASE + "ytest.csv").values.ravel()
+
+except Exception as e:
+    raise RuntimeError(f"Failed to load dataset: {e}")
+
+print("Train-test data loaded successfully")
+
+
+# ==============================
+# 🔥 COLUMN STANDARDIZATION
+# ==============================
+
+Xtrain.columns = [
+    "Engine rpm",
+    "Lub oil pressure",
+    "Fuel pressure",
+    "Coolant pressure",
+    "Lub oil temp",
+    "Coolant temp"
+]
+
+Xtest.columns = Xtrain.columns
 
 
 # ==============================
@@ -82,17 +106,40 @@ preprocessor = ColumnTransformer(
 # ==============================
 
 models = {
-    "DecisionTree": DecisionTreeClassifier(random_state=42, class_weight="balanced"),
-    "Bagging": BaggingClassifier(n_estimators=100, random_state=42),
-    "RandomForest": RandomForestClassifier(n_estimators=200, class_weight="balanced", random_state=42),
-    "AdaBoost": AdaBoostClassifier(n_estimators=100, random_state=42),
-    "GradientBoosting": GradientBoostingClassifier(n_estimators=150, random_state=42)
+
+    "DecisionTree": DecisionTreeClassifier(
+        random_state=42,
+        class_weight="balanced"
+    ),
+
+    "Bagging": BaggingClassifier(
+        n_estimators=100,
+        random_state=42
+    ),
+
+    "RandomForest": RandomForestClassifier(
+        n_estimators=200,
+        class_weight="balanced",
+        random_state=42
+    ),
+
+    "AdaBoost": AdaBoostClassifier(
+        n_estimators=100,
+        random_state=42
+    ),
+
+    "GradientBoosting": GradientBoostingClassifier(
+        n_estimators=150,
+        random_state=42
+    )
 }
 
 
 # ==============================
 # XGBOOST TUNING
 # ==============================
+
+print("Tuning XGBoost...")
 
 xgb_param_grid = {
     "model__n_estimators": [100, 200],
@@ -129,7 +176,7 @@ with open("best_xgb_params.json", "w") as f:
 
 
 # ==============================
-# TRAINING LOOP
+# EXPERIMENT LOOP
 # ==============================
 
 results = []
@@ -137,10 +184,13 @@ best_model = None
 best_recall = 0
 best_model_name = ""
 
+print("Starting model training...")
+
 for name, model in models.items():
 
     with mlflow.start_run(run_name=name):
 
+        # Avoid double preprocessing
         if name == "XGBoost_Tuned":
             pipeline = model
         else:
@@ -150,14 +200,17 @@ for name, model in models.items():
             ])
 
         pipeline.fit(Xtrain, ytrain)
+
         y_pred = pipeline.predict(Xtest)
 
         acc = accuracy_score(ytest, y_pred)
-        recall = recall_score(ytest, y_pred)
-        precision = precision_score(ytest, y_pred)
-        f1 = f1_score(ytest, y_pred)
+        recall = recall_score(ytest, y_pred, zero_division=0)
+        precision = precision_score(ytest, y_pred, zero_division=0)
+        f1 = f1_score(ytest, y_pred, zero_division=0)
 
+        # MLflow logging
         mlflow.log_param("model_type", name)
+
         mlflow.log_metrics({
             "accuracy": acc,
             "recall": recall,
@@ -165,13 +218,23 @@ for name, model in models.items():
             "f1_score": f1
         })
 
-        results.append({
+        # ⭐ Artifact logging (IMPORTANT)
+        metrics_dict = {
             "model": name,
             "accuracy": acc,
             "recall": recall,
             "precision": precision,
             "f1_score": f1
-        })
+        }
+
+        with open("metrics.json", "w") as f:
+            json.dump(metrics_dict, f)
+
+        mlflow.log_artifact("metrics.json")
+
+        results.append(metrics_dict)
+
+        print(f"{name} → Recall: {recall:.4f}")
 
         if recall > best_recall:
             best_recall = recall
@@ -180,7 +243,7 @@ for name, model in models.items():
 
 
 # ==============================
-# SAVE
+# SAVE MODEL
 # ==============================
 
 joblib.dump(best_model, "best_engine_model.pkl")
@@ -192,35 +255,16 @@ mlflow.sklearn.log_model(best_model, "best_model")
 
 
 # ==============================
-# UPLOAD TO HF (FIXED)
+# UPLOAD TO HF
 # ==============================
 
 api.create_repo(repo_id=MODEL_REPO, repo_type="model", exist_ok=True)
 
-time.sleep(3)
-
-api.upload_file(
-    path_or_fileobj="best_engine_model.pkl",
-    path_in_repo="best_engine_model.pkl",
-    repo_id=MODEL_REPO,
-    repo_type="model"
-)
-
-api.upload_file(
-    path_or_fileobj="metrics.json",
-    path_in_repo="metrics.json",
-    repo_id=MODEL_REPO,
-    repo_type="model"
-)
-
-api.upload_file(
-    path_or_fileobj="best_xgb_params.json",
-    path_in_repo="best_xgb_params.json",
-    repo_id=MODEL_REPO,
-    repo_type="model"
-)
+api.upload_file("best_engine_model.pkl", "best_engine_model.pkl", MODEL_REPO, repo_type="model")
+api.upload_file("metrics.json", "metrics.json", MODEL_REPO, repo_type="model")
+api.upload_file("best_xgb_params.json", "best_xgb_params.json", MODEL_REPO, repo_type="model")
 
 
-print(f"\nBest Model: {best_model_name}")
-print(f"Best Recall: {best_recall}")
-print("Model uploaded to Hugging Face")
+print("\nBest Model:", best_model_name)
+print("Best Recall:", best_recall)
+print("Model uploaded to Hugging Face successfully")

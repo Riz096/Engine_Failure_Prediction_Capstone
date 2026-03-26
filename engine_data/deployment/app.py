@@ -1,100 +1,92 @@
+
 import streamlit as st
 import pandas as pd
 import joblib
 from huggingface_hub import hf_hub_download
 
+
 # ==============================
-# Load Model from Hugging Face
+# PAGE CONFIG
 # ==============================
 
-model_path = hf_hub_download(
-    repo_id="Rizwan9/Engine_Failure_Model",
-    filename="best_engine_model.pkl"
+st.set_page_config(
+    page_title="Engine Failure Prediction",
+    layout="centered"
 )
 
-model = joblib.load(model_path)
 
 # ==============================
-# Streamlit UI
+# LOAD MODEL (WITH CACHING)
 # ==============================
 
-st.title("Engine Failure Prediction System")
+@st.cache_resource
+def load_model():
+    try:
+        model_path = hf_hub_download(
+            repo_id="Rizwan9/Engine_Failure_Model",
+            filename="best_engine_model.pkl"
+        )
+        return joblib.load(model_path)
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
+
+
+model = load_model()
+
+
+# ==============================
+# UI
+# ==============================
+
+st.title("🔧 Engine Failure Prediction System")
 
 st.write("""
 This application predicts whether an engine is likely to **fail** based on sensor readings.
-It can help maintenance teams detect potential engine problems early.
+
+Helps maintenance teams take preventive action.
 """)
 
-# ==============================
-# User Inputs (Engine Sensors)
-# ==============================
-
-engine_rpm = st.number_input(
-    "Engine RPM",
-    min_value=500,
-    max_value=5000,
-    value=1500
-)
-
-lub_oil_pressure = st.number_input(
-    "Lubrication Oil Pressure",
-    min_value=0.0,
-    max_value=10.0,
-    value=3.5
-)
-
-fuel_pressure = st.number_input(
-    "Fuel Pressure",
-    min_value=0.0,
-    max_value=10.0,
-    value=4.0
-)
-
-coolant_pressure = st.number_input(
-    "Coolant Pressure",
-    min_value=0.0,
-    max_value=10.0,
-    value=2.5
-)
-
-lub_oil_temp = st.number_input(
-    "Lubrication Oil Temperature",
-    min_value=50.0,
-    max_value=150.0,
-    value=90.0
-)
-
-coolant_temp = st.number_input(
-    "Coolant Temperature",
-    min_value=50.0,
-    max_value=150.0,
-    value=85.0
-)
 
 # ==============================
-# Create Input DataFrame
+# INPUTS
 # ==============================
 
-input_data = pd.DataFrame([{
-    "Engine rpm": engine_rpm,
-    "Lub oil pressure": lub_oil_pressure,
-    "Fuel pressure": fuel_pressure,
-    "Coolant pressure": coolant_pressure,
-    "Lub oil temp": lub_oil_temp,
-    "Coolant temp": coolant_temp
-}])
+engine_rpm = st.number_input("Engine RPM", 500, 5000, 1500)
+lub_oil_pressure = st.number_input("Lubrication Oil Pressure", 0.0, 10.0, 3.5)
+fuel_pressure = st.number_input("Fuel Pressure", 0.0, 10.0, 4.0)
+coolant_pressure = st.number_input("Coolant Pressure", 0.0, 10.0, 2.5)
+lub_oil_temp = st.number_input("Lubrication Oil Temperature", 50.0, 150.0, 90.0)
+coolant_temp = st.number_input("Coolant Temperature", 50.0, 150.0, 85.0)
+
 
 # ==============================
-# Prediction
+# PREDICTION
 # ==============================
 
 if st.button("Predict Engine Condition"):
 
-    prediction = model.predict(input_data)[0]
-
-    st.subheader("Prediction Result")
-
-    if prediction == 1:
-        st.error("Engine Failure Likely – Maintenance Required")
+    if model is None:
+        st.error("Model not loaded. Please check deployment.")
     else:
-        st.success("Engine Operating Normally")
+        try:
+            input_data = pd.DataFrame([{
+                "Engine rpm": engine_rpm,
+                "Lub oil pressure": lub_oil_pressure,
+                "Fuel pressure": fuel_pressure,
+                "Coolant pressure": coolant_pressure,
+                "Lub oil temp": lub_oil_temp,
+                "Coolant temp": coolant_temp
+            }])
+
+            prediction = model.predict(input_data)[0]
+
+            st.subheader("Prediction Result")
+
+            if prediction == 1:
+                st.error("Engine Failure Likely – Maintenance Required")
+            else:
+                st.success("Engine Operating Normally")
+
+        except Exception as e:
+            st.error(f"Prediction failed: {e}")
