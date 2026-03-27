@@ -34,7 +34,7 @@ df = pd.read_csv("engine_data/data/engine_data.csv")
 
 TARGET = "Engine Condition"
 
-# 🔥 Column Standardization (IMPORTANT)
+# Column Standardization (IMPORTANT)
 df.columns = [
     "Engine rpm",
     "Lub oil pressure",

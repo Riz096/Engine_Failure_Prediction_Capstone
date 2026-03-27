@@ -46,7 +46,7 @@ if TARGET_COLUMN not in df.columns:
     raise ValueError(f"Target column '{TARGET_COLUMN}' not found.")
 
 # ==============================
-# 🔥 Column Standardization (VERY IMPORTANT)
+# Column Standardization (VERY IMPORTANT)
 # ==============================
 
 df.columns = [

@@ -54,22 +54,35 @@ except RepositoryNotFoundError:
 
 
 # ==============================
-# Upload Files
+# UPLOAD TO HF (FIXED)
 # ==============================
 
-print("Uploading deployment files...")
+print("Uploading model to Hugging Face...")
 
-try:
-    api.upload_folder(
-        folder_path=DEPLOYMENT_PATH,
-        repo_id=SPACE_REPO,
-        repo_type="space",
-        path_in_repo="",
-        commit_message="Updated deployment files",
-        ignore_patterns=["*.ipynb", "__pycache__", "mlruns"]
-    )
+api.create_repo(repo_id=MODEL_REPO, repo_type="model", exist_ok=True)
 
-    print("Deployment files uploaded successfully")
+# Correct usage (named arguments)
+api.upload_file(
+    path_or_fileobj="best_engine_model.pkl",
+    path_in_repo="best_engine_model.pkl",
+    repo_id=MODEL_REPO,
+    repo_type="model"
+)
 
-except Exception as e:
-    raise RuntimeError(f"Deployment failed: {e}")
+api.upload_file(
+    path_or_fileobj="metrics.json",
+    path_in_repo="metrics.json",
+    repo_id=MODEL_REPO,
+    repo_type="model"
+)
+
+api.upload_file(
+    path_or_fileobj="best_xgb_params.json",
+    path_in_repo="best_xgb_params.json",
+    repo_id=MODEL_REPO,
+    repo_type="model"
+)
+
+print("Model uploaded successfully to Hugging Face")
+print(f"Best Model: {best_model_name}")
+print(f"Best Recall: {best_recall}")
